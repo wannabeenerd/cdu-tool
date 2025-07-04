@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDU/CSU Abgeordneten-Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.05); opacity: 0.1; }
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .upload-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        .search-filters {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-input, .filter-select {
+            padding: 12px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .search-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            min-width: 150px;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .results {
+            padding: 30px;
+            min-height: 400px;
+        }
+
+        .bundesland-section {
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .bundesland-header {
+            background: linear-gradient(135deg, #343a40 0%, #495057 100%);
+            color: white;
+            padding: 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .bundesland-header:hover {
+            background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+        }
+
+        .bundesland-title {
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+
+        .bundesland-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .abgeordnete-list {
+            display: none;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .abgeordnete-list.active {
+            display: block;
+        }
+
+        .abgeordnete-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .abgeordnete-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border-left: 4px solid #667eea;
+        }
+
+        .abgeordnete-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .abgeordnete-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #343a40;
+        }
+
+        .abgeordnete-info {
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+
+        .abgeordnete-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .email-btn {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+        }
+
+        .email-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        .phone-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .phone-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #6c757d;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #6f42c1 0%, #6610f2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(111, 66, 193, 0.3);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(111, 66, 193, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .controls {
+                padding: 20px;
+            }
+            
+            .search-filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-input, .filter-select {
+                width: 100%;
+            }
+            
+            .abgeordnete-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>CDU/CSU Abgeordneten-Tool</h1>
+            <p class="subtitle">Strukturierte Darstellung und Kontaktmöglichkeiten</p>
+        </div>
+
+        <div class="controls">
+            <div class="upload-section">
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" accept=".docx" />
+                    <label for="fileInput" class="file-input-label">
+                        📄 DOCX-Datei laden
+                    </label>
+                </div>
+                <button class="download-btn" id="downloadBtn" style="display: none;">
+                    💾 data.json herunterladen
+                </button>
+            </div>
+
+            <div class="search-filters">
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 Suche nach Namen, Bundesland..." />
+                <select id="bundeslandFilter" class="filter-select">
+                    <option value="">Alle Bundesländer</option>
+                </select>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCount">0</div>
+                    <div class="stat-label">Abgeordnete</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="bundeslandCount">0</div>
+                    <div class="stat-label">Bundesländer</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="visibleCount">0</div>
+                    <div class="stat-label">Sichtbar</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="loading">Bitte lade eine DOCX-Datei, um die Abgeordnetendaten zu verarbeiten...</div>
+        </div>
+    </div>
+
+    <script>
+        let allData = {};
+        let filteredData = {};
+
+        const fileInput = document.getElementById('fileInput');
+        const searchInput = document.getElementById('searchInput');
+        const bundeslandFilter = document.getElementById('bundeslandFilter');
+        const results = document.getElementById('results');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        fileInput.addEventListener('change', handleFileUpload);
+        searchInput.addEventListener('input', filterData);
+        bundeslandFilter.addEventListener('change', filterData);
+        downloadBtn.addEventListener('click', downloadJSON);
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.name.endsWith('.docx')) {
+                showError('Bitte wähle eine DOCX-Datei aus.');
+                return;
+            }
+
+            results.innerHTML = '<div class="loading">Verarbeite DOCX-Datei...</div>';
+
+            try {
+                const result = await mammoth.extractRawText({arrayBuffer: await file.arrayBuffer()});
+                const text = result.value;
+                
+                allData = parseDocxContent(text);
+                updateBundeslandFilter();
+                filterData();
+                downloadBtn.style.display = 'inline-block';
+                
+            } catch (error) {
+                showError('Fehler beim Verarbeiten der DOCX-Datei: ' + error.message);
+            }
+        }
+
+        function parseDocxContent(text) {
+            const result = {};
+            const lines = text.split('\n').filter(line => line.trim());
+            
+            let currentBundesland = '';
+            let currentEntry = null;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // Bundesland erkennen (typische deutsche Bundesländer)
+                if (isBundeslandLine(line)) {
+                    currentBundesland = line;
+                    if (!result[currentBundesland]) {
+                        result[currentBundesland] = [];
+                    }
+                    continue;
+                }
+                
+                // Abgeordnete erkennen (Name-Pattern)
+                if (isNameLine(line) && currentBundesland) {
+                    if (currentEntry) {
+                        result[currentBundesland].push(currentEntry);
+                    }
+                    
+                    const nameParts = line.split(/\s+/);
+                    const firstName = nameParts[0] || '';
+                    const lastName = nameParts.slice(1).join(' ') || '';
+                    
+                    currentEntry = {
+                        title: determineTitleFromName(firstName),
+                        firstName: firstName,
+                        lastName: lastName,
+                        email: '',
+                        phone: '',
+                        mailText: generateMailText(firstName, lastName)
+                    };
+                }
+                
+                // E-Mail erkennen
+                if (line.includes('@') && currentEntry) {
+                    const emailMatch = line.match(/[\w\.-]+@[\w\.-]+\.\w+/);
+                    if (emailMatch) {
+                        currentEntry.email = emailMatch[0];
+                    }
+                }
+                
+                // Telefon erkennen
+                if (line.match(/\+49|030|0\d{2,5}/) && currentEntry) {
+                    const phoneMatch = line.match(/[\+\d\s\-\(\)\/]{8,}/);
+                    if (phoneMatch) {
+                        currentEntry.phone = phoneMatch[0].trim();
+                    }
+                }
+            }
+            
+            // Letzten Eintrag hinzufügen
+            if (currentEntry && currentBundesland) {
+                result[currentBundesland].push(currentEntry);
+            }
+            
+            return result;
+        }
+
+        function isBundeslandLine(line) {
+            const bundeslaender = [
+                'Baden-Württemberg', 'Bayern', 'Berlin', 'Brandenburg', 'Bremen', 
+                'Hamburg', 'Hessen', 'Mecklenburg-Vorpommern', 'Niedersachsen', 
+                'Nordrhein-Westfalen', 'Rheinland-Pfalz', 'Saarland', 'Sachsen', 
+                'Sachsen-Anhalt', 'Schleswig-Holstein', 'Thüringen'
+            ];
+            return bundeslaender.some(bl => line.includes(bl));
+        }
+
+        function isNameLine(line) {
+            // Einfache Heuristik: Zeile mit 2-4 Wörtern ohne Sonderzeichen
+            const words = line.split(/\s+/);
+            return words.length >= 2 && words.length <= 4 && 
+                   !line.includes('@') && !line.includes('+49') && 
+                   !line.includes('030') && !/\d{4,}/.test(line);
+        }
+
+        function determineTitleFromName(firstName) {
+            const femaleNames = ['Andrea', 'Angela', 'Annette', 'Antje', 'Barbara', 'Bärbel', 'Beate', 'Bettina', 'Birgit', 'Brigitte', 'Carola', 'Claudia', 'Cornelia', 'Dagmar', 'Daniela', 'Doris', 'Elke', 'Eva', 'Gabriele', 'Gisela', 'Gudrun', 'Heike', 'Ingrid', 'Iris', 'Jutta', 'Karin', 'Katrin', 'Kirsten', 'Maja', 'Maria', 'Marion', 'Martina', 'Mechthild', 'Monika', 'Nadine', 'Nicole', 'Petra', 'Renate', 'Rita', 'Sabine', 'Silvia', 'Susanne', 'Ute', 'Ursula', 'Veronika'];
+            return femaleNames.includes(firstName) ? 'Frau' : 'Herr';
+        }
+
+        function generateMailText(firstName, lastName) {
+            const template = `Sehr geehrte/r ${determineTitleFromName(firstName)} ${lastName},
+
+ich wende mich heute als Bürger/in an Sie, um meine Anliegen bezüglich aktueller politischer Entwicklungen zu teilen.
+
+[Hier können Sie Ihr konkretes Anliegen formulieren]
+
+Ich würde mich sehr über eine Rückmeldung zu diesem Thema freuen.
+
+Mit freundlichen Grüßen
+[Ihr Name]`;
+            
+            return encodeURIComponent(template);
+        }
+
+        function updateBundeslandFilter() {
+            const bundeslaender = Object.keys(allData).sort();
+            bundeslandFilter.innerHTML = '<option value="">Alle Bundesländer</option>';
+            
+            bundeslaender.forEach(bl => {
+                const option = document.createElement('option');
+                option.value = bl;
+                option.textContent = `${bl} (${allData[bl].length})`;
+                bundeslandFilter.appendChild(option);
+            });
+        }
+
+        function filterData() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const selectedBundesland = bundeslandFilter.value;
+            
+            filteredData = {};
+            
+            Object.keys(allData).forEach(bundesland => {
+                if (selectedBundesland && bundesland !== selectedBundesland) return;
+                
+                const filtered = allData[bundesland].filter(abgeordnete => {
+                    const fullName = `${abgeordnete.firstName} ${abgeordnete.lastName}`.toLowerCase();
+                    return fullName.includes(searchTerm) || 
+                           bundesland.toLowerCase().includes(searchTerm);
+                });
+                
+                if (filtered.length > 0) {
+                    filteredData[bundesland] = filtered;
+                }
+            });
+            
+            displayResults();
+            updateStats();
+        }
+
+        function displayResults() {
+            const bundeslaender = Object.keys(filteredData).sort();
+            
+            if (bundeslaender.length === 0) {
+                results.innerHTML = '<div class="loading">Keine Ergebnisse gefunden.</div>';
+                return;
+            }
+            
+            results.innerHTML = bundeslaender.map(bundesland => `
+                <div class="bundesland-section">
+                    <div class="bundesland-header" onclick="toggleBundesland('${bundesland}')">
+                        <div class="bundesland-title">${bundesland}</div>
+                        <div class="bundesland-count">${filteredData[bundesland].length}</div>
+                    </div>
+                    <div class="abgeordnete-list active" id="list-${bundesland}">
+                        <div class="abgeordnete-grid">
+                            ${filteredData[bundesland].map(abgeordnete => `
+                                <div class="abgeordnete-card">
+                                    <div class="abgeordnete-name">
+                                        ${abgeordnete.title} ${abgeordnete.firstName} ${abgeordnete.lastName}
+                                    </div>
+                                    <div class="abgeordnete-info">
+                                        ${abgeordnete.email ? `📧 ${abgeordnete.email}` : ''}
+                                        ${abgeordnete.phone ? `<br>📞 ${abgeordnete.phone}` : ''}
+                                    </div>
+                                    <div class="abgeordnete-actions">
+                                        ${abgeordnete.email ? `
+                                            <a href="mailto:${abgeordnete.email}?subject=Bürgerfrage&body=${abgeordnete.mailText}" 
+                                               class="action-btn email-btn">
+                                                📧 E-Mail senden
+                                            </a>
+                                        ` : ''}
+                                        ${abgeordnete.phone ? `
+                                            <a href="tel:${abgeordnete.phone}" class="action-btn phone-btn">
+                                                📞 Anrufen
+                                            </a>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleBundesland(bundesland) {
+            const listElement = document.getElementById(`list-${bundesland}`);
+            listElement.classList.toggle('active');
+        }
+
+        function updateStats() {
+            const totalCount = Object.values(allData).reduce((sum, arr) => sum + arr.length, 0);
+            const visibleCount = Object.values(filteredData).reduce((sum, arr) => sum + arr.length, 0);
+            const bundeslandCount = Object.keys(allData).length;
+            
+            document.getElementById('totalCount').textContent = totalCount;
+            document.getElementById('bundeslandCount').textContent = bundeslandCount;
+            document.getElementById('visibleCount').textContent = visibleCount;
+        }
+
+        function downloadJSON() {
+            const dataStr = JSON.stringify(allData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'data.json';
+            link.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        function showError(message) {
+            results.innerHTML = `<div class="error">❌ ${message}</div>`;
+        }
+    </script>
+</body>
+</html>
